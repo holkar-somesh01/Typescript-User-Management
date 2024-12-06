@@ -5,6 +5,7 @@ import upload from "../utils/upload"
 import cloudinary from "../utils/cloudinary.config"
 import path from "path"
 import { updateTodoSchema } from "../middleware/authValidation"
+import { IO } from "../socket/Socket"
 
 
 interface ITodo {
@@ -20,20 +21,15 @@ interface ITodo {
 
 }
 interface CustomRequest extends Request {
-    loggedInUser?: string; // or whatever type `loggedInUser` should be
+    loggedInUser?: string;
 }
 
 export const getTodo = asyncHandler(async (req: CustomRequest, res: Response): Promise<void> => {
-    console.log(req.loggedInUser)
     const result = await Todo.find({ userId: req?.loggedInUser })
     res.json({ message: "Fetch Success", result })
 })
 export const addTodo = asyncHandler(async (req: CustomRequest, res: Response): Promise<any> => {
     upload(req, res, async (err) => {
-
-        console.log("req.body", req.body);
-        console.log("req.files", req.file);
-
         if (err) {
             return res.status(400).json({ message: "Multer Errrr", err })
         }
@@ -51,10 +47,12 @@ export const addTodo = asyncHandler(async (req: CustomRequest, res: Response): P
         }
 
         await Todo.create({ title, description, isCompleted, priority, skills, taskType, message, photo, userId: req.loggedInUser })
+        const result = await Todo.find({ userId: req?.loggedInUser })
+        IO.emit("Todo-emit", result)
         res.json({ message: "todo create success" })
     })
 })
-export const deleteTodos = asyncHandler(async (req: Request, res: Response): Promise<any> => {
+export const deleteTodos = asyncHandler(async (req: CustomRequest, res: Response): Promise<any> => {
     upload(req, res, async (err) => {
         if (err) {
             return res.status(400).json({ message: "Multer Error", err })
@@ -65,36 +63,27 @@ export const deleteTodos = asyncHandler(async (req: Request, res: Response): Pro
             return res.status(400).json({ message: "Data not found" })
         }
         if (result.photo) {
-            cloudinary.uploader.destroy(path.basename(result?.photo))
-                .then(async () => {
-                    await Todo.findByIdAndDelete(id)
-                    console.log("Delete Suucces")
-                })
-                .catch((err) => console.error(err)
-                )
+            await cloudinary.uploader.destroy(path.basename(result?.photo))
         }
+        await Todo.findByIdAndDelete(id)
+        const dresult = await Todo.find({ userId: req?.loggedInUser })
+        IO.emit("Todo-emit", dresult)
         res.json({ message: "todo delete  succes" })
     })
 })
-export const updateTodos = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+export const updateTodos = asyncHandler(async (req: CustomRequest, res: Response): Promise<void> => {
     upload(req, res, async (err) => {
         const paresData = updateTodoSchema.parse(req.body)
         const { title, description, isCompleted, priority, skills, taskType, message } = paresData
-        console.log(req.body, "req-body")
-
         const { id } = req.params
         let photo
         if (req.file) {
-            cloudinary.uploader.upload(req.file.path)
-                .then(async ({ secure_url }) => {
-                    photo = secure_url
-                    await Todo.findByIdAndUpdate(id, { title, description, isCompleted, priority, skills, taskType, message, photo })
-                })
-                .catch(error => {
-                    console.error(error);
-                    res.status(500).send("Error uploading file.");
-                });
+            const { secure_url } = await cloudinary.uploader.upload(req.file.path)
+            photo = secure_url
         }
+        await Todo.findByIdAndUpdate(id, { title, description, isCompleted, priority, skills, taskType, message, photo })
+        const dresult = await Todo.find({ userId: req?.loggedInUser })
+        IO.emit("Todo-emit", dresult)
         res.json({ message: "todo Update  succes" })
     })
 })

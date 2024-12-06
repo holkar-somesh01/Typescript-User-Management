@@ -7,6 +7,7 @@ import { loginSchema, registerSchema, updateSchema } from "../middleware/authVal
 import dotenv from 'dotenv';
 import cloudinary from "../utils/cloudinary.config"
 import upload from "../utils/upload"
+import { IO } from "../socket/Socket"
 dotenv.config();
 
 
@@ -60,16 +61,12 @@ export const updateprofile = asyncHandler(async (req: Request, res: Response): P
         const { name, mobile, hobby, exprience, } = paraseData
         let images
         if (req.file) {
-            cloudinary.uploader.upload(req.file.path)
-                .then(async ({ secure_url }) => {
-                    images = secure_url
-                    await User.findByIdAndUpdate(id, { name, mobile, hobby, exprience, isActive, photo: images })
-                })
-                .catch(error => {
-                    console.error(error);
-                    res.status(500).send("Error uploading file.");
-                });
+            const { secure_url } = await cloudinary.uploader.upload(req.file.path)
+            images = secure_url
         }
+        await User.findByIdAndUpdate(id, { name, mobile, hobby, exprience, isActive, photo: images })
+        const result = await User.findOne({ _id: id })
+        IO.emit("profile", result)
         res.json({ message: "Update Success" })
     })
 })

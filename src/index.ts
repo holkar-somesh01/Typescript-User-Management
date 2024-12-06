@@ -7,9 +7,8 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { userProtected } from './middleware/Protected';
 import path from 'path';
+import { app, httpServer } from './socket/Socket';
 dotenv.config();
-
-const app = express();
 const MONGO_URL: string = process.env.MONGO_URL!
 const PORT: number = parseInt(process.env.PORT!)
 
@@ -37,5 +36,5 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 mongoose.connect(MONGO_URL)
 mongoose.connection.once("open", () => {
     console.log("MONGO CONNECTED")
-    app.listen(PORT, () => console.log(`SERVER RINNING 🏃‍♂️`))
+    httpServer.listen(PORT, () => console.log(`SERVER RINNING 🏃‍♂️`))
 })
