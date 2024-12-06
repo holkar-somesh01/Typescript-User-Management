@@ -9,8 +9,8 @@ import { userProtected } from './middleware/Protected';
 dotenv.config();
 
 const app = express();
-const MONGO_URL: string = process.env.MONGO_URL || '';
-const PORT: number = parseInt(process.env.PORT || '5000', 10);
+const MONGO_URL: string = process.env.MONGO_URL!
+const PORT: number = parseInt(process.env.PORT!)
 
 app.use(express.json())
 app.use(cookieParser())
@@ -21,22 +21,16 @@ app.use(cors({
 
 app.use('/api/auth', AuthRouter);
 app.use('/api', userProtected, router);
+app.use('*', (req: Request, res: Response) => {
+    res.status(404).json({ message: "Resource Not Found" })
+})
+
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    console.error(err);
-    res.status(500).json({
-        message: 'Server Error',
-        error: err.message,
-    });
-});
-mongoose
-    .connect(MONGO_URL)
-    .then(() => {
-        console.log('MongoDB connected');
-        app.listen(PORT, () => {
-            console.log(`Server running on port ${PORT}`);
-        });
-    })
-    .catch((err) => {
-        console.error('Error connecting to MongoDB:', err.message);
-        process.exit(1);
-    });
+    console.error(err)
+    res.status(500).json({ message: 'Server Error', error: err.message, })
+})
+mongoose.connect(MONGO_URL)
+mongoose.connection.once("open", () => {
+    console.log("MONGO CONNECTED")
+    app.listen(PORT, () => console.log(`SERVER RINNING 🏃‍♂️`))
+})
