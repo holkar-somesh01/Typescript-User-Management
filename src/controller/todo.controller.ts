@@ -50,7 +50,7 @@ export const addTodo = asyncHandler(async (req: CustomRequest, res: Response): P
             }
         }
 
-        await Todo.create({ title, description, isCompleted, priority, skills, taskType, message, photo })
+        await Todo.create({ title, description, isCompleted, priority, skills, taskType, message, photo, userId: req.loggedInUser })
         res.json({ message: "todo create success" })
     })
 })
